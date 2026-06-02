@@ -35,7 +35,7 @@ function Landing() {
       <div className="container">
         <header>
           <UtensilsCrossed className="logo-icon" size={28} />
-          <span className="logo-text">fuud<span className="logo-highlight">r</span></span>
+          <span className="logo-text">Fuud<span className="logo-highlight">r</span></span>
         </header>
 
         <main className="main-content">

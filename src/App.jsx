@@ -71,15 +71,23 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
   const progressRef  = useRef(0);
   const showSwipeRef = useRef(false);
   const timerRef     = useRef(null);
+  const segStartRef  = useRef(Date.now()); // wall-clock start of current segment
+
+  // Returns the real duration (ms) for the current set+seg
+  const getDuration = (setI, segI) =>
+    setI === 1 && segI === 1 ? SEGMENT_DURATION_BURGER2 : SEGMENT_DURATION_DEFAULT;
 
   useEffect(() => {
+    segStartRef.current = Date.now();
+
     const iv = setInterval(() => {
       if (fadingRef.current) return;
 
-      // Duration varies: burger2 = 10s, everything else = 4s
-      const isBurger2 = setIdxRef.current === 1 && segRef.current === 1;
-      const dynStep   = 100 / ((isBurger2 ? SEGMENT_DURATION_BURGER2 : SEGMENT_DURATION_DEFAULT) / 50);
-      const next      = progressRef.current + dynStep;
+      const duration = getDuration(setIdxRef.current, segRef.current);
+      const elapsed  = Date.now() - segStartRef.current;
+      const next     = Math.min((elapsed / duration) * 100, 100);
+
+      // Show hand at 75% of seg 1 (wall-clock accurate)
       if (segRef.current === 1 && next >= 75 && !showSwipeRef.current) {
         showSwipeRef.current = true;
         setSwipeKey(k => k + 1);
@@ -101,7 +109,6 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
           const doneSeg = segRef.current;
 
           if (doneSeg === 1) {
-            // Both bars done → scroll-up transition then switch set
             setFading(false);
             setScrolling(true);
             setTimeout(() => {
@@ -114,15 +121,16 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
               setProgress(0);
               setScrolling(false);
               fadingRef.current = false;
+              segStartRef.current = Date.now();
             }, 550);
           } else {
-            // Advance to seg 1 within same set
             segRef.current = 1;
             progressRef.current = 0;
             setSeg(1);
             setProgress(0);
             fadingRef.current = false;
             setFading(false);
+            segStartRef.current = Date.now();
           }
         }, 350);
       } else {

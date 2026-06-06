@@ -12,10 +12,10 @@ const BURGER_REELS = [
   { video: '/burger1.mp4', restaurant: 'Burger Boss & Fries', dish: 'Smash Double Cheeseburger', distance: '1.5 km away', handle: '@burgerboss_in' },
   { video: '/burger2.mp4', restaurant: 'The Patty Lab',       dish: 'Double Smash Burger',       distance: '0.9 km away', handle: '@pattylab_in' },
 ];
-const REEL_SETS      = [PIZZA_REELS, BURGER_REELS];
-const SEGMENTS       = 2;
+const REEL_SETS             = [PIZZA_REELS, BURGER_REELS];
+const SEGMENTS              = 2;
 const SEGMENT_DURATION_DEFAULT = 7000;
-const SEGMENT_DURATION_BURGER2 = 10000; // burger2 shows for 10s
+const SEGMENT_DURATION_BURGER2 = 10000;
 
 const IconSave   = () => <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
 const IconShare  = () => <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" strokeLinecap="round"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" strokeLinecap="round"/></svg>;
@@ -24,16 +24,15 @@ const IconSound  = () => <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 
 const IconCart   = () => <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>;
 const IconMenu   = () => <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>;
 
-/* ── Reel info overlay (shared) ── */
 function ReelInfo({ r }) {
   return (
     <>
       <div className="phone-side-actions">
         {[
-          { icon: <IconSave />, label: 'Save' },
-          { icon: <IconShare />, label: 'Share' },
+          { icon: <IconSave />,   label: 'Save' },
+          { icon: <IconShare />,  label: 'Share' },
           { icon: <IconReview />, label: 'Reviews' },
-          { icon: <IconSound />, label: 'Sound' },
+          { icon: <IconSound />,  label: 'Sound' },
         ].map(({ icon, label }) => (
           <div key={label} className="phone-action">
             <div className="phone-action-icon">{icon}</div>
@@ -55,31 +54,31 @@ function ReelInfo({ r }) {
   );
 }
 
-/* ── Main phone component ── */
 function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms' }) {
-  const [setIdx,    setSetIdx]    = useState(0);   // 0=pizza, 1=burger
-  const [seg,       setSeg]       = useState(0);   // 0 or 1 within current set
-  const [progress,  setProgress]  = useState(0);   // 0-100
+  const [setIdx,    setSetIdx]    = useState(0);
+  const [seg,       setSeg]       = useState(0);
+  const [progress,  setProgress]  = useState(0);
   const [fading,    setFading]    = useState(false);
-  const [scrolling, setScrolling] = useState(false); // scroll-up animation active
+  const [scrolling, setScrolling] = useState(false);
   const [showSwipe, setShowSwipe] = useState(false);
   const [swipeKey,  setSwipeKey]  = useState(0);
+  // Only render the next slide when we actually need to scroll
+  const [preloadNext, setPreloadNext] = useState(false);
 
   const segRef       = useRef(0);
   const setIdxRef    = useRef(0);
   const fadingRef    = useRef(false);
-  const progressRef  = useRef(0);
   const showSwipeRef = useRef(false);
   const timerRef     = useRef(null);
-  const segStartRef  = useRef(Date.now()); // wall-clock start of current segment
+  const segStartRef  = useRef(Date.now());
 
-  // Returns the real duration (ms) for the current set+seg
-  const getDuration = (setI, segI) =>
-    setI === 1 && segI === 1 ? SEGMENT_DURATION_BURGER2 : SEGMENT_DURATION_DEFAULT;
+  const getDuration = (si, sg) =>
+    si === 1 && sg === 1 ? SEGMENT_DURATION_BURGER2 : SEGMENT_DURATION_DEFAULT;
 
   useEffect(() => {
     segStartRef.current = Date.now();
 
+    // Use 200ms interval instead of 50ms — much lighter on mobile
     const iv = setInterval(() => {
       if (fadingRef.current) return;
 
@@ -87,9 +86,12 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
       const elapsed  = Date.now() - segStartRef.current;
       const next     = Math.min((elapsed / duration) * 100, 100);
 
-      // Show hand at 75% of seg 1 for burgers, 55% for pizza2
-      const swipeTrigger = setIdxRef.current === 0 ? 65 : 75;
-      if (segRef.current === 1 && next >= swipeTrigger && !showSwipeRef.current) {
+      // Preload next slide only when we're close (90%)
+      if (next >= 90 && segRef.current === 1) setPreloadNext(true);
+
+      // Show hand at 65% pizza / 75% burger
+      const trigger = setIdxRef.current === 0 ? 65 : 75;
+      if (segRef.current === 1 && next >= trigger && !showSwipeRef.current) {
         showSwipeRef.current = true;
         setSwipeKey(k => k + 1);
         setShowSwipe(true);
@@ -101,14 +103,12 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
       }
 
       if (next >= 100) {
-        progressRef.current = 100;
         setProgress(100);
         fadingRef.current = true;
         setFading(true);
 
         setTimeout(() => {
           const doneSeg = segRef.current;
-
           if (doneSeg === 1) {
             setFading(false);
             setScrolling(true);
@@ -117,16 +117,15 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
               setIdxRef.current = nextSet;
               setSetIdx(nextSet);
               segRef.current = 0;
-              progressRef.current = 0;
               setSeg(0);
               setProgress(0);
               setScrolling(false);
+              setPreloadNext(false);
               fadingRef.current = false;
               segStartRef.current = Date.now();
             }, 550);
           } else {
             segRef.current = 1;
-            progressRef.current = 0;
             setSeg(1);
             setProgress(0);
             fadingRef.current = false;
@@ -135,18 +134,16 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
           }
         }, 350);
       } else {
-        progressRef.current = next;
         setProgress(next);
       }
-    }, 50);
+    }, 200); // 200ms — plenty smooth, 4× lighter than 50ms
 
     return () => { clearInterval(iv); clearTimeout(timerRef.current); };
   }, []);
 
-  const reels    = REEL_SETS[setIdx];
-  const nextReels = REEL_SETS[(setIdx + 1) % REEL_SETS.length];
-  const r        = reels[seg];
-  const nextR    = nextReels[0];
+  const reels   = REEL_SETS[setIdx];
+  const nextSet = REEL_SETS[(setIdx + 1) % REEL_SETS.length];
+  const r       = reels[seg];
 
   return (
     <div className={`reveal ${bobClass}`} style={{ transitionDelay: revealDelay }}>
@@ -154,11 +151,10 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
         <div className="phone-shell">
           <div className="phone-screen" style={{ overflow: 'hidden' }}>
 
-            {/* Scroll container — current slides up, next slides in from below */}
             <div
               className="reel-scroll-container"
               style={{
-                transform: scrolling ? 'translateY(-100%)' : 'translateY(0)',
+                transform:  scrolling ? 'translateY(-50%)' : 'translateY(0)',
                 transition: scrolling ? 'transform 0.55s cubic-bezier(0.4,0,0.2,1)' : 'none',
               }}
             >
@@ -174,20 +170,24 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
                 <ReelInfo r={r} />
               </div>
 
-              {/* Next reel set (peeking below, slides up on scroll) */}
+              {/* Next reel — only rendered when preloadNext=true to save memory */}
               <div className="reel-slide">
-                <video
-                  key={`next-${setIdx}`}
-                  src={nextR.video}
-                  autoPlay loop muted playsInline
-                  className="phone-reel-img fade-in"
-                />
-                <div className="phone-reel-overlay" />
-                <ReelInfo r={nextR} />
+                {preloadNext && (
+                  <>
+                    <video
+                      key={`next-${setIdx}`}
+                      src={nextSet[0].video}
+                      autoPlay loop muted playsInline
+                      className="phone-reel-img fade-in"
+                    />
+                    <div className="phone-reel-overlay" />
+                    <ReelInfo r={nextSet[0]} />
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Status bar & progress bars always on top */}
+            {/* Status + progress bars — always on top */}
             <div className="phone-statusbar">
               <span className="phone-time">3:09</span>
               <div className="phone-status-icons">
@@ -206,7 +206,7 @@ function PhoneCard({ rotate = '0deg', bobClass = 'bobbing-1', revealDelay = '0ms
               ))}
             </div>
 
-            {/* Swipe hand video */}
+            {/* Swipe hand */}
             {showSwipe && (
               <video
                 key={swipeKey}
@@ -244,7 +244,7 @@ function useReveal() {
   useEffect(() => {
     const obs = new IntersectionObserver(
       entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active'); }),
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.1 }
     );
     document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
     return () => obs.disconnect();
@@ -252,6 +252,8 @@ function useReveal() {
 }
 function useCursorGlow() {
   useEffect(() => {
+    // Skip on touch devices — no cursor
+    if (window.matchMedia('(hover: none)').matches) return;
     const glow = document.getElementById('cursor-glow');
     if (!glow) return;
     const move  = e => { glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px'; glow.style.opacity = '1'; };
@@ -269,12 +271,14 @@ function useNavShrink() {
       if (window.scrollY > 50) { nav.classList.add('py-2', 'scale-95'); nav.classList.remove('py-3'); }
       else { nav.classList.remove('py-2', 'scale-95'); nav.classList.add('py-3'); }
     };
-    window.addEventListener('scroll', fn);
+    window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
   }, []);
 }
 function useMagnetic() {
   useEffect(() => {
+    // Skip on touch devices
+    if (window.matchMedia('(hover: none)').matches) return;
     const btns = document.querySelectorAll('.btn-fancy');
     const hs = [];
     btns.forEach(btn => {
@@ -287,7 +291,7 @@ function useMagnetic() {
   }, []);
 }
 
-const IMG_DINING = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&auto=format&fit=crop';
+const IMG_DINING = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&auto=format&fit=crop';
 
 function Landing() {
   const form = useRef();
@@ -313,7 +317,9 @@ function Landing() {
   return (
     <>
       <div id="cursor-glow" />
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: -1 }}>
+
+      {/* Blobs — hidden on mobile to save GPU */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden hidden md:block" style={{ zIndex: -1 }}>
         <div className="floating-blob bg-primary w-[600px] h-[600px] -top-32 -left-32" />
         <div className="floating-blob bg-secondary-container w-[500px] h-[500px] top-1/2 -right-20" style={{ animationDelay: '-7s' }} />
         <div className="floating-blob bg-surface-container-highest w-[700px] h-[700px] -bottom-40 left-1/4" style={{ animationDelay: '-14s' }} />
@@ -334,6 +340,7 @@ function Landing() {
       <main className="relative">
         <section id="hero" className="relative min-h-screen flex items-center overflow-hidden">
           <div className="w-full max-w-[1280px] mx-auto px-5 pt-32 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
             <div className="z-10 space-y-8 text-center lg:text-left">
               <div className="reveal inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary font-label-bold text-label-bold uppercase tracking-widest">
                 <span className="relative flex h-2 w-2">
@@ -342,6 +349,7 @@ function Landing() {
                 </span>
                 Coming Soon • Now Open
               </div>
+
               <h1 className="font-display-xl text-display-xl-mobile md:text-display-xl text-on-background leading-[1.0]" style={{ fontFamily: 'Bricolage Grotesque' }}>
                 {words.map(({ w, d, cls }, i) => (
                   <React.Fragment key={i}>
@@ -349,9 +357,11 @@ function Landing() {
                   </React.Fragment>
                 ))}
               </h1>
+
               <p className="reveal font-body-lg text-body-lg text-on-surface-variant max-w-xl mx-auto lg:mx-0" style={{ transitionDelay: '400ms' }}>
                 Skip the boring menus. Watch tasty food reels and order your favourite meals instantly.
               </p>
+
               <div className="reveal w-full max-w-xl mx-auto lg:mx-0" style={{ transitionDelay: '600ms' }}>
                 <form ref={form} onSubmit={sendEmail} className="bg-white p-2 rounded-full flex items-center gap-2 shadow-[0_20px_50px_rgba(43,18,8,0.1)] border border-outline/10">
                   <input name="user_email" className="flex-1 bg-transparent border-none focus:ring-0 px-6 font-body-md text-on-surface placeholder:text-outline-variant outline-none" placeholder="Enter your email address" required type="email" />
@@ -361,6 +371,7 @@ function Landing() {
                 </form>
                 <p className="mt-4 text-xs text-outline" style={{ fontFamily: 'Plus Jakarta Sans' }}>Join 2,400+ foodies waiting for the launch.</p>
               </div>
+
               <div className="reveal" style={{ transitionDelay: '800ms' }}>
                 <a href="#features" className="btn-fancy inline-block font-label-bold text-label-bold text-primary uppercase tracking-widest border-2 border-primary/30 hover:border-primary/60 px-8 py-3 rounded-full transition-all">
                   EXPLORE THE MENU
@@ -391,7 +402,7 @@ function Landing() {
               <div className="relative z-10">
                 <span className="text-primary font-label-bold uppercase tracking-widest text-sm mb-4 block translate-y-4 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">Interactive Experience</span>
                 <h2 className="font-headline-lg text-headline-lg mb-4" style={{ fontFamily: 'Bricolage Grotesque' }}>Dine with your eyes first.</h2>
-                <p className="font-body-md text-on-surface-variant max-w-md">Our algorithm learns your cravings to show you the most delicious reels from chefs near you. No more guessing what the dish actually looks like.</p>
+                <p className="font-body-md text-on-surface-variant max-w-md">Our algorithm learns your cravings to show you the most delicious reels from chefs near you.</p>
               </div>
             </div>
             <div className="bg-secondary-container rounded-lg p-8 flex flex-col justify-between group hover:shadow-xl transition-all duration-500 reveal" style={{ transitionDelay: '150ms' }}>
@@ -415,7 +426,7 @@ function Landing() {
             <div className="md:col-span-3 bg-surface-container-highest rounded-lg p-10 flex flex-col md:flex-row items-center justify-between gap-8 reveal" style={{ transitionDelay: '450ms' }}>
               <div>
                 <h2 className="font-headline-lg text-headline-lg mb-4" style={{ fontFamily: 'Bricolage Grotesque' }}>Ready to satisfy your cravings?</h2>
-                <p className="font-body-md text-on-surface-variant max-w-lg">Join our community of 50k+ food lovers discovering the best meals their city has to offer through beautiful video content.</p>
+                <p className="font-body-md text-on-surface-variant max-w-lg">Join our community of 50k+ food lovers discovering the best meals their city has to offer.</p>
               </div>
               <a href="#hero" className="btn-fancy flex-shrink-0 bg-on-background text-background font-label-bold text-label-bold px-10 py-5 rounded-full shadow-xl">ORDER NOW</a>
             </div>

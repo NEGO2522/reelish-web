@@ -5,18 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Better chunking for faster initial load
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         },
       },
-    },
-  },
-  server: {
-    headers: {
-      'Cache-Control': 'public, max-age=31536000',
     },
   },
 })

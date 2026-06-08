@@ -122,7 +122,7 @@ body::after {
    NAVBAR
 ══════════════════ */
 .nav-wrapper {
-  position: sticky;
+  position: fixed;
   top: 16px;
   left: 50%;
   transform: translateX(-50%);

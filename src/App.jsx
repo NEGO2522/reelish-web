@@ -477,8 +477,13 @@ function Landing() {
           </div>
 
           <div className="hero-right">
-            <div className="hero-right-bg"/>
-            <PhoneCard bobClass="bobbing-1"/>
+            <div className="phone-food-wrapper">
+              <img src="/Chole.png"  alt="Chole"  className="mf-img mf-tl" />
+              <img src="/Burger.png" alt="Burger" className="mf-img mf-tr" />
+              <PhoneCard bobClass="bobbing-1"/>
+              <img src="/Pizza.png"  alt="Pizza"  className="mf-img mf-bl" />
+              <img src="/Panner.png" alt="Paneer" className="mf-img mf-br" />
+            </div>
           </div>
         </section>
 

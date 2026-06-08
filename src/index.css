@@ -891,7 +891,7 @@ body::after {
 .footer-waitlist-input {
   flex: 1;
   padding: 12px 14px;
-  background: transparent;
+  background: rgba(255,255,255,0.06);
   border: none;
   outline: none;
   font-family: 'DM Sans', sans-serif;
